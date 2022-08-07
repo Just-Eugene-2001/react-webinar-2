@@ -4,7 +4,7 @@ class Store {
     // Состояние приложения (данные)
     this.state = initState;
     // Слушатели изменений state
-    this.listners = [];
+    this.listeners = [];
   }
 
   /**
@@ -22,8 +22,8 @@ class Store {
   setState(newState) {
     this.state = newState;
     // Оповещаем всех подписчиков об изменении стейта
-    for (const lister of this.listners) {
-      lister();
+    for (const listener of this.listeners) {
+      listener();
     }
   }
 
@@ -33,54 +33,61 @@ class Store {
    * @return {Function} Функция для отписки
    */
   subscribe(callback) {
-    this.listners.push(callback);
+    this.listeners.push(callback);
     // Возвращаем функцию для удаления слушателя
     return () => {
-      this.listners = this.listners.filter(item => item !== callback);
+      this.listeners = this.listeners.filter(item => item !== callback);
     }
   }
 
   /**
-   * Создание записи
-   */
-  createItem({code, title = 'Новая запись', selected = false}, counter=0) {
-    this.setState({
-      ...this.state,
-      items: this.state.items.concat({code, title, selected, counter})
-    });
-  }
-
-  /**
-   * Удаление записи по её коду
+   * Удаление из корзины по её коду
    * @param code
    */
   deleteItem(code) {
+    const item = this.getState().cart.items.find(item => item.code === code);
+    const amount = this.getState().cart.amount - 1;
+    const price = this.getState().cart.price - item.price * item.amount;
+    
     this.setState({
       ...this.state,
-      items: this.state.items.filter(item => item.code !== code)
+      cart: {
+        items: this.state.cart.items.filter(item => item.code !== code),
+        amount,
+        price
+      }
     });
   }
 
   /**
-   * Выделение записи по её коду
+   * Добавление в корзину по её коду
    * @param code
    */
-  selectItem(code) {
+  addItem(code) {
+    const item = this.getState().items.find(item => item.code === code);
+    const items = this.getState().cart.items.map(item => {
+      if (item.code === code){
+        return {...item, amount: item.amount + 1};
+      } return item;
+    });
+    if (this.getState().cart.items.findIndex(item => item.code === code) < 0) {
+      items.push({...item, amount: 1})
+    }
+    items.sort((prev, next) => prev.code - next.code);
+    let amount = items.length;
+    let price = 0;
+    for (const item of items) {
+      price += item.price * item.amount;
+    }
+
     this.setState({
       ...this.state,
-      items: this.state.items.map(item => {
-        if (item.code === code){
-          item.selected = !item.selected;
-          if(item.selected){
-            item.counter++;
-          }
-        }
-        else {
-          item.selected = '';
-        }
-        return item;
-      })
-    });
+      cart: {
+        items,
+        amount,
+        price
+      }
+    })
   }
 }
 
